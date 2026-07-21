@@ -9,6 +9,11 @@ Base: `https://bareconnect.com/api/storefront/v1`. Products are addressed by pub
 (slug). Rate limit **120 req/min** per key (`429` when exceeded; `X-RateLimit-Reset` header).
 Full contract in `../../../openapi/storefront.v1.yaml`.
 
+> **Currency:** Bareconnect is multi-currency — stores sell in GHS, NGN, KES, USD and more. Every
+> price carries its own `currency` field; **read it, never assume**. The examples below happen to
+> use `GHS`, but yours will be whatever your store is set to. Render prices using the `currency`
+> value returned, not a hardcoded symbol.
+
 ## Products
 `GET /products` — live catalog. Query: `search`, `collection` (handle), `category` (handle),
 `min_price`, `max_price`, `page`, `limit` (max 50).

@@ -25,7 +25,10 @@ components:
       properties:
         amount: { type: number }
         compare_at_price: { type: number, nullable: true }
-        currency: { type: string }
+        currency:
+          type: string
+          description: "ISO 4217 code — the store's own currency (GHS, NGN, KES, USD, and more). Render with this; never assume GHS."
+          example: NGN
     ProductCard:
       type: object
       properties:

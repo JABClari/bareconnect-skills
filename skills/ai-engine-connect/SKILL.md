@@ -39,6 +39,9 @@ You build the frontend; you never build an admin.
   card form, never collect payment details, never create the order yourself — the hosted checkout
   creates the (unpaid-until-payment) order.
 - **Persist the cart.** Store the cart `token` in `localStorage` so the cart survives reloads.
+- **Multi-currency.** Bareconnect stores sell in many currencies (GHS, NGN, KES, USD and more).
+  Every price returns its own `currency` code — render with that, never a hardcoded symbol or an
+  assumed GHS. Examples in the reference use GHS only as an example.
 - **No mocking.** If the catalog is empty or a call fails, show a real empty state or surface the
   error — never fall back to fake/placeholder products.
 
