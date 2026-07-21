@@ -54,8 +54,28 @@ Start here: **[skills/ai-engine-connect](./skills/ai-engine-connect)**.
 ## Getting your keys
 
 1. Create a store on Bareconnect.
-2. In the admin, open **Settings → AI Engine Connect**.
+2. In the admin, open **Settings → Connect**.
 3. Copy your **Store ID** and **publishable key** (and, for server apps, request a **secret key**).
+
+---
+
+## Credits & further reading
+
+The developer experience and UI polish here were sharpened by these excellent, freely shared skills
+and resources. Big thanks to their authors — go install and read them (we point to them rather than
+vendor them, so you always get the up-to-date version):
+
+- **OKLCH color** — modern, perceptually-uniform color for interfaces.
+  `npx skills add jakubkrehel/oklch-skill` · <https://github.com/jakubkrehel/oklch-skill>
+- **Details that make interfaces feel better** — the small touches that add up.
+  `npx skills add jakubkrehel/make-interfaces-feel-better` · <https://jakub.kr/writing/details-that-make-interfaces-feel-better>
+- **Transitions** — practical motion guidance for UI.
+  `npx skills add jakubantalik/transitions-dev` · <https://transitions.dev/>
+
+A favourite tip from the above — making a notification badge's *appear* animation feel natural:
+- Set the scale transition's origin to the **bottom-left**.
+- Give the scale a **subtle bounce**.
+- **Animate the position** as well, not just the scale.
 
 ---
 
