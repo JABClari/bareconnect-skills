@@ -1,0 +1,13 @@
+{
+  "name": "bareconnect-skills",
+  "version": "1.0.0",
+  "description": "Bareconnect Agent Skills — connect a client-only storefront to a Bareconnect store (publishable key, read + cart + hosted checkout).",
+  "skills": [
+    {
+      "name": "ai-engine-connect",
+      "path": "skills/ai-engine-connect/SKILL.md",
+      "spec": "openapi/storefront.v1.yaml"
+    }
+  ],
+  "_note": "Generic manifest. Per-agent packaging (thin manifests that reference these shared skills) goes in .claude-plugin/, .cursor-plugin/, .codex-plugin/, gemini-extension.json, .mcp.json — see PLATFORMS.md. Never fork skill content per agent; only the manifest/invocation differs."
+}

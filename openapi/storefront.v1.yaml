@@ -1,0 +1,258 @@
+openapi: 3.1.0
+info:
+  title: Bareconnect Storefront API
+  version: 1.0.0
+  description: >-
+    Publishable-key storefront API (AI Engine Connect). READ + CART ONLY. Browse published
+    products, build a cart, and request a Bareconnect-hosted checkout URL. This key cannot read
+    orders, edit the catalog, or perform any admin action. Products are addressed by public handle
+    (slug), never an internal id. Rate limit: 120 requests/min per key.
+servers:
+  - url: https://bareconnect.com/api/storefront/v1
+components:
+  securitySchemes:
+    StoreRef:
+      type: apiKey
+      in: header
+      name: X-Bareconnect-Store
+    PublishableKey:
+      type: apiKey
+      in: header
+      name: X-Bareconnect-Key
+  schemas:
+    Money:
+      type: object
+      properties:
+        amount: { type: number }
+        compare_at_price: { type: number, nullable: true }
+        currency: { type: string }
+    ProductCard:
+      type: object
+      properties:
+        handle: { type: string }
+        title: { type: string }
+        price: { $ref: '#/components/schemas/Money' }
+        availability: { type: string, enum: [in_stock, out_of_stock] }
+        collection: { type: string, nullable: true }
+        image: { type: string, nullable: true }
+        url: { type: string }
+    Variant:
+      type: object
+      properties:
+        id: { type: string }
+        options: { type: object, additionalProperties: { type: string } }
+        price: { type: number }
+        compare_at_price: { type: number, nullable: true }
+        available: { type: boolean }
+    Product:
+      type: object
+      properties:
+        handle: { type: string }
+        title: { type: string }
+        description: { type: string }
+        description_html: { type: string }
+        price: { $ref: '#/components/schemas/Money' }
+        availability: { type: string, enum: [in_stock, out_of_stock] }
+        collection: { type: string, nullable: true }
+        category: { type: string, nullable: true }
+        images: { type: array, items: { type: string } }
+        variants: { type: array, items: { $ref: '#/components/schemas/Variant' } }
+        url: { type: string }
+    Collection:
+      type: object
+      properties:
+        handle: { type: string }
+        title: { type: string }
+        description: { type: string }
+    CartItem:
+      type: object
+      properties:
+        line_id: { type: string }
+        handle: { type: string, nullable: true }
+        title: { type: string, nullable: true }
+        variant: { type: object, nullable: true, additionalProperties: { type: string } }
+        quantity: { type: integer }
+        unit_price: { type: number, nullable: true }
+        line_total: { type: number, nullable: true }
+        currency: { type: string }
+        available: { type: boolean }
+        image: { type: string, nullable: true }
+    Cart:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            token: { type: string, example: bccart_XXXXXXXX }
+            currency: { type: string, nullable: true }
+            item_count: { type: integer }
+            subtotal: { type: number }
+            items: { type: array, items: { $ref: '#/components/schemas/CartItem' } }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        error_code: { type: string }
+        message: { type: string }
+        request_id: { type: string }
+security:
+  - StoreRef: []
+    PublishableKey: []
+paths:
+  /products:
+    get:
+      summary: List live products (page-paginated)
+      parameters:
+        - { in: query, name: search, schema: { type: string } }
+        - { in: query, name: collection, schema: { type: string }, description: collection handle }
+        - { in: query, name: category, schema: { type: string }, description: category handle }
+        - { in: query, name: min_price, schema: { type: number } }
+        - { in: query, name: max_price, schema: { type: number } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: limit, schema: { type: integer, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/ProductCard' } }
+                  meta:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      per_page: { type: integer }
+                      current_page: { type: integer }
+                      total_pages: { type: integer }
+                      currency: { type: string }
+        '401': { description: Missing/invalid credentials, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Feature not enabled / origin not allowed }
+  /products/{handle}:
+    get:
+      summary: Get one live product with variants
+      parameters:
+        - { in: path, name: handle, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Product' } } } } } }
+        '404': { description: product_not_found }
+  /collections:
+    get:
+      summary: List collections
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Collection' } } } } } } }
+  /collections/{handle}/products:
+    get:
+      summary: List live products in a collection
+      parameters:
+        - { in: path, name: handle, required: true, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer } }
+        - { in: query, name: limit, schema: { type: integer, maximum: 50 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collection: { $ref: '#/components/schemas/Collection' }
+                  data: { type: array, items: { $ref: '#/components/schemas/ProductCard' } }
+                  meta: { type: object }
+        '404': { description: collection_not_found }
+  /carts:
+    post:
+      summary: Create a cart (optionally with initial items)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [handle, quantity]
+                    properties:
+                      handle: { type: string }
+                      variant_id: { type: string, nullable: true }
+                      quantity: { type: integer, minimum: 1 }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Cart' } } } }
+  /carts/{token}:
+    get:
+      summary: Read a cart
+      parameters: [ { in: path, name: token, required: true, schema: { type: string } } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Cart' } } } }
+        '404': { description: cart_not_found }
+  /carts/{token}/items:
+    post:
+      summary: Add or increment a cart line
+      parameters: [ { in: path, name: token, required: true, schema: { type: string } } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [handle, quantity]
+              properties:
+                handle: { type: string }
+                variant_id: { type: string, nullable: true }
+                quantity: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Cart' } } } }
+        '404': { description: product_not_found }
+        '409': { description: out_of_stock or currency_mismatch }
+        '422': { description: invalid_variant or handle_required }
+  /carts/{token}/items/{lineId}:
+    patch:
+      summary: Set a line's quantity (0 removes it)
+      parameters:
+        - { in: path, name: token, required: true, schema: { type: string } }
+        - { in: path, name: lineId, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity: { type: integer }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Cart' } } } }
+        '404': { description: line_not_found }
+    delete:
+      summary: Remove a cart line
+      parameters:
+        - { in: path, name: token, required: true, schema: { type: string } }
+        - { in: path, name: lineId, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Cart' } } } }
+  /carts/{token}/checkout:
+    post:
+      summary: Request a Bareconnect-hosted checkout URL (hand-off; no order created client-side)
+      description: >-
+        Returns a URL on the store's own domain. Redirect the customer there; Bareconnect rebuilds
+        the cart on its hosted checkout, collects payment + delivery, and creates the order (unpaid
+        until payment clears), tagged source=storefront_api.
+      parameters: [ { in: path, name: token, required: true, schema: { type: string } } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      checkout_url: { type: string, format: uri }
+                      expires: { type: string, nullable: true }
+        '409': { description: no_available_items }
+        '422': { description: cart_empty }

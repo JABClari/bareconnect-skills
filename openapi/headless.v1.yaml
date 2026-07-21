@@ -1,0 +1,194 @@
+openapi: 3.1.0
+info:
+  title: Bareconnect Headless (White-Label Partner) API
+  version: "1.7"
+  description: >-
+    Server-side API for building your own product on top of Bareconnect. Authenticated with a
+    SECRET key (bearer) held on your server — NEVER exposed to a browser, prompt, or AI tool.
+    Full admin capability: stores, catalog, orders, fulfilment, order import, webhooks.
+    (This is a separate product from the Storefront API / AI Engine Connect, which is
+    publishable-key, read + cart only.)
+servers:
+  - url: https://bareconnect.com/api/partner/v1
+components:
+  securitySchemes:
+    SecretKey:
+      type: http
+      scheme: bearer
+  schemas:
+    Error:
+      type: object
+      properties:
+        error_code: { type: string }
+        message: { type: string }
+        request_id: { type: string }
+    Store:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        domain: { type: string }
+        domain_url: { type: string, format: uri }
+        commerce_mode: { type: boolean }
+    Order:
+      type: object
+      properties:
+        id: { type: string }
+        store_id: { type: string }
+        store_order_id: { type: string }
+        price_in_store_currency: { type: number }
+        cart_currency: { type: string }
+        paid: { type: boolean }
+        fulfilled: { type: boolean }
+        delivered: { type: boolean }
+        profit:
+          type: object
+          description: Per-order profit. amount is null (never 0) when any line lacks a cost price.
+          properties:
+            tracked: { type: boolean }
+            amount: { type: number, nullable: true }
+            margin_percent: { type: number, nullable: true }
+            revenue: { type: number }
+            cost: { type: number }
+            discount: { type: number }
+            delivery: { type: number }
+            currency: { type: string }
+            missing_cost_lines: { type: integer }
+security:
+  - SecretKey: []
+paths:
+  /me:
+    get:
+      summary: Inspect the current key (partner + scopes)
+      responses: { '200': { description: OK } }
+  /stores:
+    get:
+      summary: List linked stores (cursor-paginated)
+      parameters:
+        - { in: query, name: after, schema: { type: string } }
+        - { in: query, name: limit, schema: { type: integer, maximum: 100 } }
+      responses: { '200': { description: OK } }
+      security: [ { SecretKey: [] } ]
+    post:
+      summary: Provision a new store
+      responses: { '201': { description: Created } }
+  /stores/{storeId}:
+    get:
+      summary: Get a store
+      parameters: [ { in: path, name: storeId, required: true, schema: { type: string } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Store' } } } } }
+    patch:
+      summary: Update a store
+      parameters: [ { in: path, name: storeId, required: true, schema: { type: string } } ]
+      responses: { '200': { description: OK } }
+  /stores/{storeId}/products:
+    get:
+      summary: List products
+      parameters: [ { in: path, name: storeId, required: true, schema: { type: string } } ]
+      responses: { '200': { description: OK } }
+    post:
+      summary: Create a product
+      parameters: [ { in: path, name: storeId, required: true, schema: { type: string } } ]
+      responses: { '201': { description: Created } }
+  /stores/{storeId}/products/{productId}:
+    patch:
+      summary: Update a product
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: path, name: productId, required: true, schema: { type: string } }
+      responses: { '200': { description: OK } }
+    delete:
+      summary: Soft-delete a product
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: path, name: productId, required: true, schema: { type: string } }
+      responses: { '200': { description: OK } }
+  /stores/{storeId}/orders:
+    get:
+      summary: List orders (cursor-paginated). fulfilled/delivered are timestamp-or-null here.
+      parameters: [ { in: path, name: storeId, required: true, schema: { type: string } } ]
+      responses: { '200': { description: OK } }
+  /stores/{storeId}/orders/{orderId}:
+    get:
+      summary: Get one order (includes the profit block)
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: path, name: orderId, required: true, schema: { type: string } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Order' } } } } }
+  /stores/{storeId}/orders/{orderId}/fulfill:
+    patch:
+      summary: Mark fulfilled (fires order.fulfilled)
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: path, name: orderId, required: true, schema: { type: string } }
+      responses: { '200': { description: OK }, '409': { description: Already fulfilled } }
+  /stores/{storeId}/orders/{orderId}/deliver:
+    patch:
+      summary: Mark delivered (fires order.delivered)
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: path, name: orderId, required: true, schema: { type: string } }
+      responses: { '200': { description: OK }, '409': { description: Already delivered } }
+  /stores/{storeId}/orders/{orderId}/confirm-payment:
+    post:
+      summary: Confirm payment via your own gateway (BYOP / hybrid)
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: path, name: orderId, required: true, schema: { type: string } }
+      responses: { '200': { description: OK }, '409': { description: Already paid }, '422': { description: Not applicable (bareconnect-mode partner) } }
+  /stores/{storeId}/orders/import:
+    post:
+      summary: Import an external order (idempotent on external_reference); fires order.imported
+      parameters: [ { in: path, name: storeId, required: true, schema: { type: string } } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [external_reference, total, currency]
+              properties:
+                external_reference: { type: string, maxLength: 255 }
+                source: { type: string, maxLength: 50 }
+                order_type: { type: string, enum: [order, appointment] }
+                total: { type: number, minimum: 0 }
+                currency: { type: string, maxLength: 10 }
+                status: { type: string }
+                payment_status: { type: string }
+                customer:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    email: { type: string, format: email }
+                    phone: { type: string }
+                line_items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      quantity: { type: number }
+                      unit_price: { type: number }
+                      total_price: { type: number }
+                metadata: { type: object }
+                occurred_at: { type: string, format: date-time }
+      responses:
+        '201': { description: Created (new) }
+        '200': { description: OK (updated existing external_reference) }
+  /webhooks:
+    get:
+      summary: List webhook endpoints
+      responses: { '200': { description: OK } }
+    post:
+      summary: Register a webhook endpoint
+      responses: { '201': { description: Created } }
+  /webhooks/{webhookId}:
+    delete:
+      summary: Remove a webhook endpoint
+      parameters: [ { in: path, name: webhookId, required: true, schema: { type: string } } ]
+      responses: { '200': { description: OK } }
+  /webhooks/{webhookId}/deliveries:
+    get:
+      summary: List delivery attempts (newest first, cursor-paginated)
+      parameters: [ { in: path, name: webhookId, required: true, schema: { type: string } } ]
+      responses: { '200': { description: OK } }
