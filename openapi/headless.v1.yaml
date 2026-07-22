@@ -81,6 +81,26 @@ paths:
       summary: Update a store
       parameters: [ { in: path, name: storeId, required: true, schema: { type: string } } ]
       responses: { '200': { description: OK } }
+    delete:
+      summary: Soft-delete a store (reversible). Refuses if paid, unfulfilled orders exist unless force=true.
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: query, name: force, required: false, schema: { type: boolean }, description: Delete even with paid, unfulfilled orders }
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      deleted: { type: boolean }
+        '404': { description: Store not found or not owned by this partner }
+        '409': { description: store_has_open_orders (retry with ?force=true) }
   /stores/{storeId}/products:
     get:
       summary: List products

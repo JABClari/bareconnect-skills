@@ -547,6 +547,64 @@ Update settings on an existing merchant store. Send only the fields you want to 
 
 ---
 
+### `DELETE /stores/{store_id}`
+**Scope:** `stores:write`
+
+Delete a store you provisioned. This is a **soft delete** — the store is deactivated and hidden
+(it drops out of `GET /stores`), but its data is retained on Bareconnect's side and can be restored
+on request. It is never hard-deleted via the API.
+
+**Safety rail:** if the store has **paid, unfulfilled orders**, the request is rejected with `409`
+so a live merchant can't be wiped by accident. Fulfil or refund those orders first, or override with
+`?force=true`.
+
+**Query parameters**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `force` | boolean | `true` deletes even when paid, unfulfilled orders exist. Default `false`. |
+
+**Response `200 OK`**
+
+```json
+{
+  "data": {
+    "id":      "14d794d4-7281-465d-afe1-fc0ff5cdcf91",
+    "deleted": true
+  }
+}
+```
+
+**Response `409 Conflict`** — blocked by the safety rail:
+
+```json
+{
+  "error":       "store_has_open_orders",
+  "error_code":  "STORE_HAS_OPEN_ORDERS",
+  "message":     "This store has 3 paid, unfulfilled order(s). Fulfil or refund them first, or retry with ?force=true.",
+  "open_orders": 3,
+  "request_id":  "…"
+}
+```
+
+**Behaviour notes:**
+- Only your own stores are deletable; another partner's store returns `404`.
+- Deleting an already-deleted (or unknown) store returns `404`.
+- Fires a `store.deleted` webhook event after a successful delete.
+
+**Example**
+
+```bash
+curl -X DELETE https://bareconnect.com/api/partner/v1/stores/$STORE_ID \
+  -H "Authorization: Bearer $BC_KEY"
+
+# override the safety rail:
+curl -X DELETE "https://bareconnect.com/api/partner/v1/stores/$STORE_ID?force=true" \
+  -H "Authorization: Bearer $BC_KEY"
+```
+
+---
+
 ## Products
 
 ### Cursor Pagination
@@ -1151,12 +1209,13 @@ List past delivery attempts for a specific webhook endpoint, newest first.
 
 ## Webhook Event Reference
 
-### All valid events (10 total)
+### All valid events (11 total)
 
 | Event | Fires when |
 |-------|-----------|
 | `store.created` | A new merchant store is provisioned via `POST /stores` |
 | `store.updated` | A store's settings are updated via `PATCH /stores/{id}` |
+| `store.deleted` | A store is soft-deleted via `DELETE /stores/{id}` |
 | `order.created` | A new order is placed in a linked store |
 | `order.paid` | An order is marked as paid (including via `confirm-payment`) |
 | `order.fulfilled` | An order is marked as fulfilled via `PATCH .../fulfill` |
@@ -1177,6 +1236,17 @@ List past delivery attempts for a specific webhook endpoint, newest first.
   "domain":     "arc-kofis-kente",
   "country":    "Ghana",
   "created_at": "2026-05-07T12:00:00+00:00"
+}
+```
+
+**`store.deleted`**
+```json
+{
+  "event":      "store.deleted",
+  "store_id":   "uuid",
+  "store_name": "Kofi's Kente",
+  "domain":     "arc-kofis-kente",
+  "deleted_at": "2026-05-07T12:00:00+00:00"
 }
 ```
 
