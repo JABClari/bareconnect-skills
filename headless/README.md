@@ -491,22 +491,55 @@ Provision a new merchant store under your partner account. Bareconnect runs the 
     "domain":        "arc-kofis-kente",
     "domain_url":    "https://arc-kofis-kente.bareconnect.com",
     "country":       "Ghana",
+    "currency":      "GHS",
     "commerce_mode": true,
     "created_at":    "2026-05-07T12:00:00+00:00"
   }
 }
 ```
 
-Store the returned `id` — this is the `store_id` for all subsequent catalog, orders, and fulfilment requests.
+Store the returned `id` — this is the `store_id` for all subsequent catalog, orders, and fulfilment requests. **Always check the returned `currency`** — it's derived from `country` (see the table below).
 
 > **`domain` vs `domain_url`:** `domain` is the bare slug (e.g. `arc-kofis-kente`) — use this as a stable identifier for lookups. `domain_url` is the ready-to-use HTTPS storefront URL. Both fields appear on every store object across all endpoints.
+
+#### Country → currency
+
+`currency` is derived from the `country` you send:
+
+| Currency | Countries |
+|----------|-----------|
+| `GHS` | Ghana |
+| `NGN` | Nigeria |
+| `KES` | Kenya |
+| `UGX` | Uganda |
+| `ZAR` | South Africa, Namibia |
+| `GBP` | United Kingdom, Gibraltar, Isle of Man, Jersey, Guernsey |
+| `EUR` | Eurozone members (Germany, France, Italy, Spain, Netherlands, Ireland, …) |
+| `USD` | **fallback** — any country not in the lists above |
+
+**Unrecognised country → USD + a warning.** If your `country` isn't a supported market, the store is
+**still created** (in USD) but the `201` response includes a `warnings` array so you can catch a typo
+or a placeholder before going live:
+
+```json
+{
+  "data": { "id": "…", "name": "Test Store", "country": "Atlantis", "currency": "USD", "…": "…" },
+  "warnings": [
+    {
+      "code":    "country_defaulted_to_usd",
+      "message": "The country \"Atlantis\" isn't one of Bareconnect's supported markets, so this store was created in USD. If that's not intended, delete it and recreate with a supported country."
+    }
+  ]
+}
+```
+Send a country from the table for the right currency; use `DELETE /stores/{id}` to remove a mistaken one.
 
 **Possible errors**
 
 | error_code | When |
 |------------|------|
 | `INSUFFICIENT_SCOPE` | Key lacks `stores:write` |
-| `UNSUPPORTED_COUNTRY` | Bareconnect has no currency mapping for the given country string |
+| `UNSUPPORTED_COUNTRY` | The derived currency isn't configured on the platform (rare) |
 | `VALIDATION_ERROR` | `name` or `country` missing, or `email` is not a valid email address |
 
 ---
@@ -535,6 +568,7 @@ Update settings on an existing merchant store. Send only the fields you want to 
     "domain":        "arc-kofis-kente",
     "domain_url":    "https://arc-kofis-kente.bareconnect.com",
     "country":       "Ghana",
+    "currency":      "GHS",
     "commerce_mode": true,
     "created_at":    "2026-05-01T10:00:00+00:00"
   }
