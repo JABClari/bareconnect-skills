@@ -476,7 +476,7 @@ Provision a new merchant store under your partner account. Bareconnect runs the 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | string | ✅ | Merchant / store display name (max 255) |
-| `country` | string | ✅ | Country name — determines currency (e.g. `"Ghana"` → GHS, `"Nigeria"` → NGN) |
+| `country` | string | ✅ | Country name — determines the store currency. Use an exact name from the **Country → currency** table below (e.g. `"Ghana"` → GHS, `"Egypt"` → EGP, `"Rwanda"` → RWF) |
 | `category` | string | — | Store category (default: `"general"`) |
 | `email` | email | — | Contact email. Auto-generated from the domain if omitted. |
 | `phone` | string | — | Contact phone (max 30 chars) |
@@ -504,7 +504,8 @@ Store the returned `id` — this is the `store_id` for all subsequent catalog, o
 
 #### Country → currency
 
-`currency` is derived from the `country` you send:
+Bareconnect supports **16 currencies**. The store's `currency` is derived from the `country` you
+send — use the exact country name from the table:
 
 | Currency | Countries |
 |----------|-----------|
@@ -512,10 +513,18 @@ Store the returned `id` — this is the `store_id` for all subsequent catalog, o
 | `NGN` | Nigeria |
 | `KES` | Kenya |
 | `UGX` | Uganda |
+| `RWF` | Rwanda |
+| `EGP` | Egypt |
 | `ZAR` | South Africa, Namibia |
+| `XOF` | Benin, Burkina Faso, Côte d'Ivoire (Ivory Coast), Guinea-Bissau, Mali, Niger, Senegal, Togo |
 | `GBP` | United Kingdom, Gibraltar, Isle of Man, Jersey, Guernsey |
-| `EUR` | Eurozone members (Germany, France, Italy, Spain, Netherlands, Ireland, …) |
-| `USD` | **fallback** — any country not in the lists above |
+| `EUR` | Germany, France, Italy, Spain, Portugal, Netherlands, Austria, Greece, Ireland, Belgium, Finland, Lithuania, Slovakia, Slovenia, Estonia, Malta, Monaco, Luxembourg, Vatican City, Cyprus, Andorra, Montenegro, Latvia, Réunion, Guadeloupe, Martinique, San Marino, Saint Pierre and Miquelon, Åland Islands |
+| `AUD` | Australia |
+| `CAD` | Canada |
+| `CHF` | Switzerland, Liechtenstein |
+| `JPY` | Japan |
+| `MYR` | Malaysia |
+| `USD` | **Fallback only** — used when a country isn't in the list above. It also returns a `country_defaulted_to_usd` warning, so you can catch a typo or unsupported market. |
 
 **Unrecognised country → USD + a warning.** If your `country` isn't a supported market, the store is
 **still created** (in USD) but the `201` response includes a `warnings` array so you can catch a typo
