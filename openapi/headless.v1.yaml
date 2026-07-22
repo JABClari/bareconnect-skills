@@ -156,6 +156,21 @@ paths:
         - { in: path, name: storeId, required: true, schema: { type: string } }
         - { in: path, name: orderId, required: true, schema: { type: string } }
       responses: { '200': { description: OK }, '409': { description: Already paid }, '422': { description: Not applicable (bareconnect-mode partner) } }
+  /stores/{storeId}/external-orders:
+    get:
+      summary: List imported external orders (read-back for orders/import). Cursor-paginated.
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: query, name: after, required: false, schema: { type: string }, description: cursor }
+        - { in: query, name: limit, required: false, schema: { type: integer, maximum: 100 } }
+      responses: { '200': { description: OK }, '403': { description: missing orders:read } }
+  /stores/{storeId}/external-orders/{reference}:
+    get:
+      summary: Fetch one imported order by external_reference (confirm a specific import persisted)
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: path, name: reference, required: true, schema: { type: string } }
+      responses: { '200': { description: OK }, '404': { description: Imported order not found } }
   /stores/{storeId}/orders/import:
     post:
       summary: Import an external order (idempotent on external_reference); fires order.imported

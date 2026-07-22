@@ -934,7 +934,52 @@ Import an order that originated **outside Bareconnect** — e.g. a sale from the
 
 Fires the **`order.imported`** webhook (payload includes `external_reference`, `total`, `currency`, and `is_new`). Subscribe to it like any other event.
 
-> **Write-only:** there is currently **no GET endpoint** to list or read imported/external orders back. Keep your own copy keyed by `external_reference`.
+---
+
+### `GET /stores/{store_id}/external-orders`
+**Scope:** `orders:read`
+
+Read back the orders you've imported into a store — the way to confirm what landed. Cursor-paginated
+(`after` + `limit`, `limit` max 100).
+
+**Response `200 OK`**
+
+```json
+{
+  "data": [
+    {
+      "id":                 "uuid",
+      "store_id":           "uuid",
+      "external_reference": "SHOP-1042",
+      "source":             "shopify",
+      "order_type":         "order",
+      "total":              120.00,
+      "currency":           "GHS",
+      "status":             "completed",
+      "payment_status":     "paid",
+      "customer":           { "name": "Ama", "email": "ama@example.com", "phone": "+233..." },
+      "line_items":         [ { "name": "Kente scarf", "quantity": 1, "unit_price": 120, "total_price": 120 } ],
+      "metadata":           {},
+      "occurred_at":        "2026-05-06T09:00:00+00:00",
+      "created_at":         "2026-05-06T09:05:00+00:00"
+    }
+  ],
+  "meta": { "count": 1, "has_more": false, "next_cursor": null }
+}
+```
+
+### `GET /stores/{store_id}/external-orders/{external_reference}`
+**Scope:** `orders:read`
+
+Fetch a single imported order by **your own** `external_reference` — the direct way to confirm a
+specific import persisted (imports are idempotent per `external_reference`, so this is 1:1).
+
+**Response `200 OK`** — the same object shape as above under `data`. Unknown reference → `404`.
+
+```bash
+curl https://bareconnect.com/api/partner/v1/stores/$STORE_ID/external-orders/SHOP-1042 \
+  -H "Authorization: Bearer $BC_KEY"
+```
 
 ---
 
@@ -1066,8 +1111,21 @@ X-Bareconnect-Signature:   sha256=<hmac-hex>
 
 Always verify the `X-Bareconnect-Signature` before processing. This confirms the payload came from Bareconnect and was not tampered with in transit.
 
+**Signature spec (exact):**
+
+| Property | Value |
+|----------|-------|
+| Algorithm | **HMAC-SHA256** |
+| Key | your webhook `secret` (returned once from `POST /webhooks`) |
+| Signed content | the **raw request body bytes** — the JSON exactly as received. **Nothing else is concatenated:** no timestamp, no delivery id, no event name. |
+| Encoding | lowercase **hex** (not base64) |
+| Header | `X-Bareconnect-Signature: sha256=<hex>` — note the literal `sha256=` prefix |
+| Timestamp | **none** — there is no `t=` element and no timestamped signing scheme |
+
+So: your assumption is correct — it's **HMAC-SHA256, hex, over the raw body**, just with a `sha256=` prefix on the header value.
+
 ```
-expected = "sha256=" + HMAC-SHA256(raw_request_body, your_webhook_secret)
+expected = "sha256=" + HMAC-SHA256(raw_request_body, your_webhook_secret)   # hex digest
 verify   = timing_safe_equals(expected, X-Bareconnect-Signature header)
 ```
 
