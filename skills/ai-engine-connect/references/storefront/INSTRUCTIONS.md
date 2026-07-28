@@ -9,6 +9,11 @@ Base: `https://bareconnect.com/api/storefront/v1`. Products are addressed by pub
 (slug). Rate limit **120 req/min** per key (`429` when exceeded; `X-RateLimit-Reset` header).
 Full contract in `../../../openapi/storefront.v1.yaml`.
 
+> **Credentials:** ask the user for both values, then keep them in the platform's secrets/env store
+> and read them in one place (the transport). Publishable ≠ commit-safe — never hardcode either value
+> and never commit a `.env`. A `bcsk_…` **secret** key must never reach the frontend. See *Credentials*
+> in `SKILL.md`.
+
 > **Currency:** Bareconnect is multi-currency — stores sell in GHS, NGN, KES, USD and more. Every
 > price carries its own `currency` field; **read it, never assume**. The examples below happen to
 > use `GHS`, but yours will be whatever your store is set to. Render prices using the `currency`
@@ -69,6 +74,34 @@ Cart shape:
 Persist `token` in `localStorage`. A cart is **single-currency**: the first item sets the currency;
 adding a product priced in another currency → `409 { "error": "currency_mismatch" }`. Out-of-stock
 add → `409 { "error": "out_of_stock" }`. Unknown variant → `422 { "error": "invalid_variant" }`.
+
+### Cart field names — exact, do not substitute
+The cart is the most-mistyped shape in this API. Copy these names verbatim:
+
+| Field | Type | Not |
+|---|---|---|
+| `data.items` | array of lines | ~~`lines`~~, ~~`line_items`~~, ~~`cart_items`~~ |
+| `data.subtotal` | **number** | ~~`{ amount, currency }`~~ |
+| `data.currency` | string, top-level | (lines do repeat it, but read the cart's) |
+| `data.item_count` | number | ~~`items.length`~~ (this is summed quantity) |
+| `items[].line_id` | string (uuid) | ~~`id`~~ — this is the id in `/items/{lineId}` |
+| `items[].unit_price` | **number** | ~~`price.amount`~~ |
+| `items[].line_total` | **number** | ~~`total.amount`~~ |
+| `items[].variant` | object of options, or `null` | ~~`variant_id`~~ (that's the request field) |
+
+Products vs cart lines differ on purpose:
+`product.price` is an **object** (`{ amount, compare_at_price, currency }`);
+`variants[].price` and every cart-line price are **plain numbers**.
+
+`items` may be **absent or empty** on a freshly created cart, and the whole object may be `undefined`
+while a request is in flight or after a failure. `cart?.items.reduce(...)` still throws — the
+optional chain short-circuits on `cart`, not on `items`. Always `(cart?.items ?? [])`.
+
+Before rendering, confirm against a live response:
+```js
+const r = await fetch(`${BASE}/carts/${token}`, { headers });
+console.log(JSON.stringify((await r.json()).data, null, 2)); // read the real field names
+```
 
 ## Checkout (hand-off only)
 `POST /carts/{token}/checkout` — no body required.
