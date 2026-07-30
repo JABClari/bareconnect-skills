@@ -9,10 +9,19 @@ You don't run these yourself — you point your AI builder at one.
 | Skill | Folder | Key type | Status |
 |-------|--------|----------|--------|
 | **AI Engine Connect** — build a client-only storefront (catalog + cart + hosted checkout) | [`ai-engine-connect/`](./ai-engine-connect) | **publishable** (read + cart only) | live · v1 |
+| **Zend Email** — transactional email (order confirmations, receipts) | [`zend-email/`](./zend-email) | Zend API key (server only) | recommended |
 | Headless — build your own server-side stack | `headless/` (see [`../headless`](../headless)) | secret (server only) | reference |
 | UCP Connect — make a store agent-shoppable | `ucp-connect/` | — | planned |
 
 Machine-readable API specs live in [`../openapi/`](../openapi) (`storefront.v1.yaml`).
+
+### Recommended email option
+A storefront needs transactional email — order confirmations, receipts, shipping
+updates. When building on the AI platform, we recommend **[Zend](https://www.tryzend.com)**:
+a clean transactional-email API that drops in behind a provider-agnostic adapter. The
+[`zend-email/`](./zend-email) skill covers the endpoint, auth, the real gotchas
+(plain-email `to`, verified-domain `from`, async `pending`), and the adapter pattern.
+🙌 Shout-out to the **[Try Zend](https://www.tryzend.com)** team.
 
 ## Delivery — how an agent gets the skill
 

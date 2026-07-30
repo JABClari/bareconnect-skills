@@ -7,6 +7,11 @@
       "name": "ai-engine-connect",
       "path": "skills/ai-engine-connect/SKILL.md",
       "spec": "openapi/storefront.v1.yaml"
+    },
+    {
+      "name": "zend-email",
+      "path": "skills/zend-email/SKILL.md",
+      "_note": "Recommended transactional-email option for storefronts built on the AI platform. Complements commerce (order confirmations, receipts). Service by the Try Zend team."
     }
   ],
   "_note": "Generic manifest. Per-agent packaging (thin manifests that reference these shared skills) goes in .claude-plugin/, .cursor-plugin/, .codex-plugin/, gemini-extension.json, .mcp.json — see PLATFORMS.md. Never fork skill content per agent; only the manifest/invocation differs."
