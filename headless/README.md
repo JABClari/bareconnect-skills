@@ -708,6 +708,13 @@ List products for a merchant store.
       "compare_price": 60.00,
       "sku":           "ATB-001",
       "quantity":      12,
+      "images": {
+        "main":  { "id": "media-uuid", "url": "https://…" },
+        "cover": null,
+        "extra": [
+          { "id": "media-uuid", "url": "https://…", "position": 0 }
+        ]
+      },
       "created_at":    "2026-05-01T10:00:00+00:00",
       "updated_at":    "2026-05-01T10:00:00+00:00"
     }
@@ -721,6 +728,12 @@ List products for a merchant store.
 ```
 
 `status` is `"published"` or `"draft"`.
+
+`images` reports what the product already has, so a bulk upload can skip products it has already
+done. Without it, an interrupted import re-run duplicates every extra image.
+
+- `main` and `cover` are **an object or `null`** — each holds exactly one image.
+- `extra` is a list, ordered, with a `position` starting at 0.
 
 ---
 
@@ -788,6 +801,97 @@ Soft-delete a product. The product is removed from the storefront immediately bu
 ```
 
 Fires a `product.deleted` webhook event.
+
+---
+
+### `POST /stores/{store_id}/products/{product_id}/images`
+**Scope:** `catalog:write`
+
+Upload one image into one of the product's image slots. `multipart/form-data`.
+
+Exists so an integrator can go past the admin's picker, which stops at the plan's extra-image
+allowance. There is no per-request batching — send one image per call and loop.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `image` | file | yes | `jpg`, `jpeg`, `png`, `gif`, `webp`. Max 10 MB. |
+| `type` | string | yes | Which slot. See below. |
+
+| `type` | Slot | Behaviour |
+|--------|------|-----------|
+| `product_images` | Extra images (the gallery) | **Appends.** Capped by plan — see below. |
+| `product_main_images` | Main image | **Replaces.** The previous image is deleted. |
+| `product_cover_images` | Rollover image | **Replaces.** The previous image is deleted. |
+
+Main and cover hold exactly one image each, so uploading to them replaces rather than appends.
+Sending a second main image does not create a second one.
+
+Responsive variants are generated automatically — do not upload multiple sizes.
+
+**Response `201 Created`**
+
+```json
+{
+  "data": {
+    "id":   "media-uuid",
+    "url":  "https://…",
+    "type": "product_images"
+  }
+}
+```
+
+**Extra-image allowance**
+
+| Plan | Extra images per product |
+|------|--------------------------|
+| Basic (and stores without an active subscription) | 10 |
+| Professional | 15 |
+| Enterprise | Unlimited |
+
+Only extras are capped. Main and cover are never refused.
+
+**Response `422 Unprocessable`** when the allowance is used up:
+
+```json
+{
+  "error":   "image_limit_reached",
+  "message": "This store's plan allows 10 extra images per product. Remove one, or upgrade the plan.",
+  "limit":   10
+}
+```
+
+Returns `404 NOT_FOUND` if the product does not exist or belongs to an unlinked store, and `403`
+without the `catalog:write` scope.
+
+---
+
+### `DELETE /stores/{store_id}/products/{product_id}/images/{media_id}`
+**Scope:** `catalog:write`
+
+Delete one image. `media_id` is the `id` returned by the upload, or any id from the product list's
+`images` block.
+
+Works for all three slots — deleting the main image leaves the product without one until another
+is uploaded. Only images can be removed here; a product's video is not reachable through this
+endpoint.
+
+**Response `200 OK`**
+
+```json
+{
+  "data": {
+    "id":      "media-uuid",
+    "type":    "product_images",
+    "deleted": true
+  }
+}
+```
+
+Returns `404 NOT_FOUND` if the image does not exist, belongs to another product, or is not one of
+the product's images. Deleting the same image twice returns `404` on the second call.
+
+> **Note.** If a product variant was linked to the image, that link is left in place and will point
+> at nothing. This matches the Bareconnect admin, which does not clean up variant links either.
 
 ---
 

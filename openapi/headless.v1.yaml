@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Bareconnect Headless (White-Label Partner) API
-  version: "1.7"
+  version: "1.8"
   description: >-
     Server-side API for building your own product on top of Bareconnect. Authenticated with a
     SECRET key (bearer) held on your server — NEVER exposed to a browser, prompt, or AI tool.
@@ -141,6 +141,72 @@ paths:
         - { in: path, name: storeId, required: true, schema: { type: string } }
         - { in: path, name: productId, required: true, schema: { type: string } }
       responses: { '200': { description: OK } }
+  /stores/{storeId}/products/{productId}/images:
+    post:
+      summary: Upload a product image
+      description: >
+        multipart/form-data. `type` selects the slot: `product_images` appends to the gallery
+        (capped by plan: Basic 10, Professional 15, Enterprise unlimited), while
+        `product_main_images` and `product_cover_images` REPLACE the single image in that slot.
+        Max 10 MB; jpg, jpeg, png, gif, webp. Responsive variants are generated automatically.
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: path, name: productId, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ image, type ]
+              properties:
+                image: { type: string, format: binary }
+                type:
+                  type: string
+                  enum: [ product_images, product_main_images, product_cover_images ]
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      url: { type: string }
+                      type: { type: string }
+        '403': { description: Missing catalog:write scope }
+        '404': { description: Product not found or not owned by this partner }
+        '422': { description: image_limit_reached, or an invalid file/type }
+  /stores/{storeId}/products/{productId}/images/{mediaId}:
+    delete:
+      summary: Delete a product image
+      description: >
+        Removes one image from any slot. Only images are reachable here - a product's video is not.
+        Deleting the same image twice returns 404 on the second call.
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: path, name: productId, required: true, schema: { type: string } }
+        - { in: path, name: mediaId, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      type: { type: string }
+                      deleted: { type: boolean }
+        '403': { description: Missing catalog:write scope }
+        '404': { description: Image not found, or not one of this product's images }
   /stores/{storeId}/orders:
     get:
       summary: List orders (cursor-paginated). fulfilled/delivered are timestamp-or-null here.
