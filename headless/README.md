@@ -1169,9 +1169,21 @@ Returns `409 ALREADY_PAID` if the order is already paid — body includes `order
 
 Simple Books is Bareconnect's accounting suite (invoices, bills, purchase orders, contacts, ledger). This API lets you drive it for your linked stores from your own system — **records created here are tracked here, and records that originated in your system can live in both places** through two-way sync.
 
-**Scopes:** `books:read`, `books:write`. **Tenancy:** everything is scoped to the store's accounting app; a store you don't own returns `404` exactly like elsewhere. **Provisioning:** the (paid) accounting app is created automatically on your first `books:write` for a store — you don't call a separate install.
+**Scopes:** `books:read`, `books:write`, and `books:reports` (reports only). **Tenancy:** everything is scoped to the store's accounting app; a store you don't own returns `404` exactly like elsewhere. **Provisioning:** the (paid) accounting app is created automatically on your first `books:write` for a store — you don't call a separate install.
 
-> **Rolling out by resource.** Contacts (vendors + customers) ship first; invoices, bills, purchase orders, transactions, categories and reports follow the same shape (`.../books/<resource>`, cursor pagination, `external_reference` sync, `<resource>.*` webhooks).
+**Resources** (all under `.../books/`, cursor-paginated, `external_reference` two-way sync, `<resource>.*` webhooks):
+
+| Resource | Endpoints |
+|---|---|
+| **contacts** (vendors + customers) | `GET`/`POST .../books/contacts`, `GET`/`PATCH`/`DELETE .../contacts/{id}` |
+| **invoices** (+ items, payments, PDF) | `GET`/`POST .../books/invoices`, `GET`/`PATCH`/`DELETE .../invoices/{id}`, `POST .../invoices/{id}/payments`, `GET .../invoices/{id}/pdf` |
+| **bills** (+ items, payments) | `GET`/`POST .../books/bills`, `GET`/`PATCH`/`DELETE .../bills/{id}`, `POST .../bills/{id}/payments` |
+| **transactions** (ledger, create-once) | `GET`/`POST .../books/transactions`, `GET .../transactions/{id}` |
+| **purchase-orders** (+ status, signing) | `GET`/`POST .../books/purchase-orders`, `GET`/`PATCH`/`DELETE .../purchase-orders/{id}`, `PATCH .../{id}/status`, `POST .../{id}/signature-requests` |
+| **categories** (read-only chart of accounts) | `GET .../books/categories` |
+| **reports** | `GET .../books/reports/summary` (scope `books:reports`) |
+
+Common shapes: money endpoints accept an ISO `currency` code or a `currency_id`; invoices/bills lock their items once anything is paid; a recorded payment writes the matching INCOME/EXPENSE ledger entry, so it flows into the store dashboard and platform reporting automatically. Bill items and ledger entries take an optional `category_id` (from `GET .../books/categories`) — not required, so you don't need to manage the chart of accounts. Ledger transactions are create-once: re-posting an `external_reference` returns the existing row unchanged. Below documents contacts in full; the other resources follow the identical envelope, scoping and error contract.
 
 ### Two-way sync with `external_reference`
 
@@ -1502,6 +1514,16 @@ List past delivery attempts for a specific webhook endpoint, newest first.
 | `contact.created` | A Simple Books contact is created via `POST .../books/contacts` |
 | `contact.updated` | A Simple Books contact is updated (incl. `external_reference` upsert) |
 | `contact.deleted` | A Simple Books contact is soft-deleted via `DELETE .../books/contacts/{id}` |
+| `invoice.created` / `invoice.updated` / `invoice.deleted` | A Simple Books invoice is created / changed / deleted |
+| `invoice.paid` | An invoice reaches PAID via `POST .../invoices/{id}/payments` |
+| `bill.created` / `bill.updated` / `bill.deleted` | A Simple Books bill is created / changed / deleted |
+| `bill.paid` | A bill reaches PAID via `POST .../bills/{id}/payments` |
+| `transaction.created` | A manual ledger entry is created via `POST .../books/transactions` |
+| `purchase_order.created` / `purchase_order.updated` / `purchase_order.deleted` | A PO is created / changed / deleted |
+| `purchase_order.status_changed` | A PO status changes via `PATCH .../purchase-orders/{id}/status` |
+| `purchase_order.signature_requested` | Signature requests are created for a PO |
+
+Simple Books webhook payloads carry `store_id`, the record id (e.g. `invoice_id`, `bill_id`, `purchase_order_id`, `transaction_id`, `contact_id`) and, where relevant, `status`/`type`.
 
 ### Payload shapes
 

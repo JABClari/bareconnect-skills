@@ -374,6 +374,49 @@ paths:
         '200': { description: OK }
         '403': { description: Missing books:write scope }
         '404': { description: Contact not found or not owned by this partner }
+  /stores/{storeId}/books/invoices:
+    get: { summary: List invoices (books:read; cursor; ?status filter), parameters: [ { in: path, name: storeId, required: true, schema: { type: string } } ], responses: { '200': { description: OK } } }
+    post:
+      summary: Create/upsert an invoice (books:write). Accepts ISO currency or currency_id; external_reference upserts.
+      parameters: [ { in: path, name: storeId, required: true, schema: { type: string } } ]
+      responses: { '201': { description: Created }, '200': { description: Upserted }, '422': { description: unknown_currency or validation } }
+  /stores/{storeId}/books/invoices/{invoiceId}:
+    get: { summary: Get an invoice, responses: { '200': { description: OK } } }
+    patch: { summary: Update an invoice (items/currency lock once paid), responses: { '200': { description: OK } } }
+    delete: { summary: Delete an invoice, responses: { '200': { description: OK } } }
+  /stores/{storeId}/books/invoices/{invoiceId}/payments:
+    post: { summary: Record an invoice payment (books:write; writes INCOME ledger entry), responses: { '200': { description: OK }, '422': { description: amount_exceeds_balance } } }
+  /stores/{storeId}/books/invoices/{invoiceId}/pdf:
+    get: { summary: Download invoice PDF (books:read; returns application/pdf), responses: { '200': { description: PDF } } }
+  /stores/{storeId}/books/bills:
+    get: { summary: List bills (books:read; cursor; ?status), responses: { '200': { description: OK } } }
+    post: { summary: Create/upsert a bill (books:write; vendor_id + optional per-item expense_category_id must belong to the app), responses: { '201': { description: Created }, '200': { description: Upserted } } }
+  /stores/{storeId}/books/bills/{billId}:
+    get: { summary: Get a bill, responses: { '200': { description: OK } } }
+    patch: { summary: Update a bill (items lock once paid), responses: { '200': { description: OK } } }
+    delete: { summary: Delete a bill, responses: { '200': { description: OK } } }
+  /stores/{storeId}/books/bills/{billId}/payments:
+    post: { summary: Record a bill payment (books:write; writes EXPENSE ledger entry), responses: { '200': { description: OK }, '422': { description: amount_exceeds_balance } } }
+  /stores/{storeId}/books/transactions:
+    get: { summary: List ledger transactions (books:read; ?type INCOME|EXPENSE, ?category_id), responses: { '200': { description: OK } } }
+    post: { summary: Create a manual ledger entry (books:write; create-once, idempotent on external_reference), responses: { '201': { description: Created }, '200': { description: Existing external_reference returned unchanged } } }
+  /stores/{storeId}/books/transactions/{transactionId}:
+    get: { summary: Get a transaction, responses: { '200': { description: OK } } }
+  /stores/{storeId}/books/purchase-orders:
+    get: { summary: List purchase orders (books:read; cursor; ?status), responses: { '200': { description: OK } } }
+    post: { summary: Create/upsert a PO (books:write; COMMODITY_CONTRACT requires meta_data), responses: { '201': { description: Created }, '200': { description: Upserted }, '422': { description: meta_data_required } } }
+  /stores/{storeId}/books/purchase-orders/{poId}:
+    get: { summary: Get a purchase order, responses: { '200': { description: OK } } }
+    patch: { summary: Update a purchase order, responses: { '200': { description: OK } } }
+    delete: { summary: Delete a PO (cascades items + signatories + signature requests), responses: { '200': { description: OK } } }
+  /stores/{storeId}/books/purchase-orders/{poId}/status:
+    patch: { summary: Change PO status (books:write), responses: { '200': { description: OK } } }
+  /stores/{storeId}/books/purchase-orders/{poId}/signature-requests:
+    post: { summary: Create signature requests (books:write; returns token + public /po-sign/{token} URL per recipient), responses: { '201': { description: Created } } }
+  /stores/{storeId}/books/categories:
+    get: { summary: List the chart of accounts (books:read; ?type INCOME|EXPENSE), responses: { '200': { description: OK } } }
+  /stores/{storeId}/books/reports/summary:
+    get: { summary: Income/expenses/profit + top expense categories for a date range (books:reports; ?from, ?to), responses: { '200': { description: OK }, '403': { description: Missing books:reports scope } } }
   /webhooks:
     get:
       summary: List webhook endpoints
