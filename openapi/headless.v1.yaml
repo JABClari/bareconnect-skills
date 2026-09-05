@@ -294,6 +294,86 @@ paths:
       responses:
         '201': { description: Created (new) }
         '200': { description: OK (updated existing external_reference) }
+  /stores/{storeId}/books/contacts:
+    get:
+      summary: List Simple Books contacts (vendors + customers)
+      description: >
+        Scope books:read. Cursor-paginated (after, limit). Optional type filter. Returns an empty
+        page if the store has never used Simple Books (not a 404).
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: query, name: type, required: false, schema: { type: string, enum: [ vendor, customer ] } }
+        - { in: query, name: after, required: false, schema: { type: string } }
+        - { in: query, name: limit, required: false, schema: { type: integer, maximum: 100 } }
+      responses:
+        '200': { description: OK }
+        '403': { description: Missing books:read scope }
+        '404': { description: Store not owned by this partner }
+    post:
+      summary: Create or upsert a Simple Books contact
+      description: >
+        Scope books:write. Provisions the accounting app on first write. Send external_reference
+        (your own id) to upsert idempotently instead of duplicating - the basis of two-way sync.
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ name ]
+              properties:
+                name: { type: string }
+                type: { type: string, enum: [ vendor, customer ] }
+                email: { type: string, format: email }
+                phone: { type: string }
+                notes: { type: string }
+                external_reference: { type: string }
+      responses:
+        '201': { description: Created (new) }
+        '200': { description: OK (updated existing external_reference) }
+        '403': { description: Missing books:write scope }
+        '404': { description: Store not owned by this partner }
+  /stores/{storeId}/books/contacts/{contactId}:
+    get:
+      summary: Get one Simple Books contact
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: path, name: contactId, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+        '403': { description: Missing books:read scope }
+        '404': { description: Contact not found or not owned by this partner }
+    patch:
+      summary: Update a Simple Books contact
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: path, name: contactId, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                type: { type: string, enum: [ vendor, customer ] }
+                email: { type: string, format: email }
+                phone: { type: string }
+                notes: { type: string }
+      responses:
+        '200': { description: OK }
+        '403': { description: Missing books:write scope }
+        '404': { description: Contact not found or not owned by this partner }
+    delete:
+      summary: Soft-delete a Simple Books contact
+      parameters:
+        - { in: path, name: storeId, required: true, schema: { type: string } }
+        - { in: path, name: contactId, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+        '403': { description: Missing books:write scope }
+        '404': { description: Contact not found or not owned by this partner }
   /webhooks:
     get:
       summary: List webhook endpoints

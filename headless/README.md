@@ -28,10 +28,11 @@ Bareconnect stays invisible behind your own app.
 11. [Stores](#stores)
 12. [Products](#products)
 13. [Orders](#orders)
-14. [Webhooks](#webhooks)
-15. [Webhook Event Reference](#webhook-event-reference)
-16. [Troubleshooting](#troubleshooting)
-17. [Security Best Practices](#security-best-practices)
+14. [Simple Books (Accounting)](#simple-books-accounting)
+15. [Webhooks](#webhooks)
+16. [Webhook Event Reference](#webhook-event-reference)
+17. [Troubleshooting](#troubleshooting)
+18. [Security Best Practices](#security-best-practices)
 
 ---
 
@@ -195,6 +196,9 @@ Each key is issued with a specific set of scopes. Calling an endpoint without th
 | `orders:confirm` | Confirm payment on an order via your own gateway (BYOP/Hybrid only) |
 | `webhooks:manage` | Register, list, and remove webhook endpoints |
 | `stitch:render` | Render Stitch server-side data-binding (issued for Stitch integrations; no endpoint in this API surface) |
+| `books:read` | Read Simple Books (accounting) records — contacts today, more resources as the surface grows |
+| `books:write` | Create, update, and delete Simple Books records (provisions the accounting app on first write) |
+| `books:reports` | Read Simple Books reports (P&L / income) — reserved; report endpoints land with the reporting phase |
 
 > **Scope design recommendation:** issue separate keys per integration concern. A read-only analytics consumer should not hold `catalog:write`. A fulfilment worker does not need `stores:write`.
 
@@ -1161,6 +1165,72 @@ Returns `409 ALREADY_PAID` if the order is already paid — body includes `order
 
 ---
 
+## Simple Books (Accounting)
+
+Simple Books is Bareconnect's accounting suite (invoices, bills, purchase orders, contacts, ledger). This API lets you drive it for your linked stores from your own system — **records created here are tracked here, and records that originated in your system can live in both places** through two-way sync.
+
+**Scopes:** `books:read`, `books:write`. **Tenancy:** everything is scoped to the store's accounting app; a store you don't own returns `404` exactly like elsewhere. **Provisioning:** the (paid) accounting app is created automatically on your first `books:write` for a store — you don't call a separate install.
+
+> **Rolling out by resource.** Contacts (vendors + customers) ship first; invoices, bills, purchase orders, transactions, categories and reports follow the same shape (`.../books/<resource>`, cursor pagination, `external_reference` sync, `<resource>.*` webhooks).
+
+### Two-way sync with `external_reference`
+
+Any record you create can carry `external_reference` — **your own id** for it. Re-`POST`ing the same `external_reference` **updates** the existing record instead of creating a duplicate, so overlapping syncs and retries are safe (idempotent per store). A contact you create in your system appears in Simple Books; one created in Simple Books flows back to you via the `contact.*` webhooks. Same record, both systems.
+
+### `GET /stores/{store_id}/books/contacts`
+
+**Scope:** `books:read`. List contacts (vendors and customers). Cursor-paginated (`after`, `limit`). Optional `?type=vendor` or `?type=customer`.
+
+```json
+{
+  "data": [
+    {
+      "id": "9a1f…",
+      "external_reference": "crm-4821",
+      "type": "customer",
+      "name": "Ama Owusu",
+      "email": "ama@example.com",
+      "phone": "+233201234567",
+      "notes": null,
+      "created_at": "2026-09-05T10:00:00+00:00",
+      "updated_at": "2026-09-05T10:00:00+00:00"
+    }
+  ],
+  "meta": { "count": 1, "has_more": false, "next_cursor": null }
+}
+```
+
+If the store has never used Simple Books, this returns an empty page (not a 404).
+
+### `POST /stores/{store_id}/books/contacts`
+
+**Scope:** `books:write`. Create a contact, or upsert one by `external_reference`.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `name` | string | ✅ | Contact name (max 255) |
+| `type` | string | — | `vendor` (default) or `customer` |
+| `email` | email | — | |
+| `phone` | string | — | max 64 |
+| `notes` | string | — | max 2000 |
+| `external_reference` | string | — | **your** id for this contact; re-posting it upserts |
+
+Returns `201` when created, `200` when an existing `external_reference` was updated. Fires `contact.created` / `contact.updated`.
+
+### `GET /stores/{store_id}/books/contacts/{contact_id}`
+
+**Scope:** `books:read`. Returns the single contact, or `404`.
+
+### `PATCH /stores/{store_id}/books/contacts/{contact_id}`
+
+**Scope:** `books:write`. Update any of `name`, `type`, `email`, `phone`, `notes`. Fires `contact.updated`.
+
+### `DELETE /stores/{store_id}/books/contacts/{contact_id}`
+
+**Scope:** `books:write`. Soft-deletes the contact. Fires `contact.deleted`.
+
+---
+
 ## Webhooks
 
 Webhooks let Bareconnect notify your platform in real time when events occur. Instead of polling, you register an HTTPS endpoint and receive `POST` requests whenever subscribed events fire.
@@ -1429,6 +1499,9 @@ List past delivery attempts for a specific webhook endpoint, newest first.
 | `product.created` | A product is created via `POST /stores/{id}/products` |
 | `product.updated` | A product is updated via `PATCH /stores/{id}/products/{id}` |
 | `product.deleted` | A product is soft-deleted via `DELETE /stores/{id}/products/{id}` |
+| `contact.created` | A Simple Books contact is created via `POST .../books/contacts` |
+| `contact.updated` | A Simple Books contact is updated (incl. `external_reference` upsert) |
+| `contact.deleted` | A Simple Books contact is soft-deleted via `DELETE .../books/contacts/{id}` |
 
 ### Payload shapes
 

@@ -12,6 +12,12 @@
       "name": "zend-email",
       "path": "skills/zend-email/SKILL.md",
       "_note": "Recommended transactional-email option for storefronts built on the AI platform. Complements commerce (order confirmations, receipts). Service by the Try Zend team."
+    },
+    {
+      "name": "headless-product-upload",
+      "path": "skills/headless-product-upload/SKILL.md",
+      "spec": "openapi/headless.v1.yaml",
+      "_note": "Server-side (secret key) recipe: create products and upload their images (main, cover, extras gallery + plan cap) via the Headless Partner API."
     }
   ],
   "_note": "Generic manifest. Per-agent packaging (thin manifests that reference these shared skills) goes in .claude-plugin/, .cursor-plugin/, .codex-plugin/, gemini-extension.json, .mcp.json — see PLATFORMS.md. Never fork skill content per agent; only the manifest/invocation differs."
