@@ -11,9 +11,18 @@ You don't run these yourself — you point your AI builder at one.
 | **AI Engine Connect** — build a client-only storefront (catalog + cart + hosted checkout) | [`ai-engine-connect/`](./ai-engine-connect) | **publishable** (read + cart only) | live · v1 |
 | **Zend Email** — transactional email (order confirmations, receipts) | [`zend-email/`](./zend-email) | Zend API key (server only) | recommended |
 | Headless — build your own server-side stack | `headless/` (see [`../headless`](../headless)) | secret (server only) | reference |
+| **UI & UX Interaction Audit** — house polish bar: transitions.dev snippets + Emil Kowalski motion rules, audit → fix → verify | [`ui-ux-interaction-audit/`](./ui-ux-interaction-audit) | none (frontend craft) | live · v1 |
 | UCP Connect — make a store agent-shoppable | `ucp-connect/` | — | planned |
 
 Machine-readable API specs live in [`../openapi/`](../openapi) (`storefront.v1.yaml`).
+
+### UI & UX interaction audit
+Every storefront or admin built with these skills should pass the
+[`ui-ux-interaction-audit/`](./ui-ux-interaction-audit) before it ships: compact Shopify-Shop-style
+UI, SVG icons (no emojis), transitions copied only from [transitions.dev](https://transitions.dev/),
+and Emil Kowalski's animation bar ([emilkowal.ski/skill](https://emilkowal.ski/skill)). The upstream
+skills are vendored under `ui-ux-interaction-audit/references/` and refreshed with
+`npx skills add jakubantalik/transitions-dev` and `npx skills add emilkowalski/skill`.
 
 ### Recommended email option
 A storefront needs transactional email — order confirmations, receipts, shipping

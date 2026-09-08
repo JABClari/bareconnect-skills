@@ -18,6 +18,11 @@
       "path": "skills/headless-product-upload/SKILL.md",
       "spec": "openapi/headless.v1.yaml",
       "_note": "Server-side (secret key) recipe: create products and upload their images (main, cover, extras gallery + plan cap) via the Headless Partner API."
+    },
+    {
+      "name": "ui-ux-interaction-audit",
+      "path": "skills/ui-ux-interaction-audit/SKILL.md",
+      "_note": "House UI & UX interaction audit (Shopify-Shop compact bar). Wraps vendored transitions.dev (jakubantalik/transitions-dev) and Emil Kowalski's design-engineering/animation skills (emilkowalski/skill) under references/. Run before UI commits; refresh with npx skills add."
     }
   ],
   "_note": "Generic manifest. Per-agent packaging (thin manifests that reference these shared skills) goes in .claude-plugin/, .cursor-plugin/, .codex-plugin/, gemini-extension.json, .mcp.json — see PLATFORMS.md. Never fork skill content per agent; only the manifest/invocation differs."
